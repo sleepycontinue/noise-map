@@ -1,0 +1,1118 @@
+﻿<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>北京西城区噪声地图 - 专业增强版 | 动态热力+等值面+趋势分析</title>
+    
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css" />
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet.heat/0.2.0/leaflet-heat.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.9.0/d3.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        body {
+            font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif;
+            height: 100vh;
+            overflow: hidden;
+            background: #f0f2f5;
+        }
+        
+        /* 侧边栏 - 毛玻璃效果 */
+        .sidebar {
+            position: absolute;
+            left: 20px;
+            top: 20px;
+            bottom: 20px;
+            width: 360px;
+            background: rgba(255, 255, 255, 0.96);
+            backdrop-filter: blur(20px);
+            border-radius: 28px;
+            z-index: 1000;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            border: 1px solid rgba(0, 0, 0, 0.08);
+            box-shadow: 0 12px 32px rgba(0, 0, 0, 0.12);
+            color: #1e293b;
+        }
+        
+        .sidebar-header {
+            background: linear-gradient(135deg, #ff7e2e, #ff4d00);
+            padding: 20px;
+            text-align: center;
+        }
+        
+        .sidebar-header h1 {
+            font-size: 1.3rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            color: white;
+        }
+        
+        .sidebar-header p {
+            font-size: 0.7rem;
+            opacity: 0.9;
+            margin-top: 4px;
+        }
+        
+        .sidebar-content {
+            flex: 1;
+            overflow-y: auto;
+            padding: 16px;
+        }
+        
+        .card {
+            background: rgba(245, 248, 250, 0.9);
+            border-radius: 20px;
+            padding: 16px;
+            margin-bottom: 16px;
+            border: 1px solid rgba(0, 0, 0, 0.05);
+        }
+        
+        .card-title {
+            font-size: 0.85rem;
+            font-weight: 700;
+            margin-bottom: 12px;
+            color: #ff7e2e;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .time-group {
+            display: flex;
+            gap: 10px;
+        }
+        
+        .time-btn {
+            flex: 1;
+            padding: 10px;
+            border: none;
+            border-radius: 16px;
+            background: #eef2ff;
+            color: #334155;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-weight: 600;
+        }
+        
+        .time-btn.active {
+            background: linear-gradient(135deg, #ff9800, #f57c00);
+            color: white;
+            box-shadow: 0 4px 12px rgba(255, 152, 0, 0.3);
+        }
+        
+        .road-card {
+            border-left: 4px solid #ff9800;
+            animation: slideIn 0.3s ease;
+            background: white;
+        }
+        
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateX(-20px); }
+            to { opacity: 1; transform: translateX(0); }
+        }
+        
+        .road-name {
+            font-size: 1rem;
+            font-weight: bold;
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+        
+        .noise-gauge {
+            background: #e2e8f0;
+            border-radius: 20px;
+            height: 8px;
+            margin: 12px 0;
+            overflow: hidden;
+        }
+        
+        .noise-fill {
+            height: 100%;
+            border-radius: 20px;
+            transition: width 0.3s;
+        }
+        
+        .noise-value {
+            font-size: 1.8rem;
+            font-weight: bold;
+            text-align: center;
+            margin: 8px 0;
+        }
+        
+        .slider-label {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 8px;
+            font-size: 0.8rem;
+        }
+        
+        input[type="range"] {
+            width: 100%;
+            height: 4px;
+            border-radius: 2px;
+            background: #cbd5e1;
+            appearance: none;
+            -webkit-appearance: none;
+        }
+        
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            background: #ff9800;
+            cursor: pointer;
+            box-shadow: 0 0 4px #ff9800;
+        }
+        
+        .measure-btn {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 12px;
+            background: #f8fafc;
+            border-radius: 16px;
+            margin-bottom: 10px;
+            cursor: pointer;
+            transition: all 0.2s;
+            border: 1px solid #e2e8f0;
+        }
+        
+        .measure-btn.active {
+            background: #dcfce7;
+            border-left: 3px solid #4caf50;
+            border-color: #4caf50;
+        }
+        
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+        }
+        
+        .stat-box {
+            text-align: center;
+            padding: 10px;
+            background: #f1f5f9;
+            border-radius: 16px;
+        }
+        
+        .stat-number {
+            font-size: 1.2rem;
+            font-weight: bold;
+        }
+        
+        #map {
+            width: 100%;
+            height: 100vh;
+            background: #e9f0f5;
+        }
+        
+        /* 右侧数据面板 - 新增 */
+        .data-panel {
+            position: absolute;
+            right: 20px;
+            top: 20px;
+            width: 280px;
+            background: rgba(255, 255, 255, 0.96);
+            backdrop-filter: blur(16px);
+            border-radius: 24px;
+            z-index: 1000;
+            border: 1px solid rgba(0, 0, 0, 0.08);
+            box-shadow: 0 12px 28px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+            padding: 16px;
+        }
+        
+        .data-panel h4 {
+            font-size: 0.85rem;
+            font-weight: 700;
+            margin-bottom: 12px;
+            color: #ff7e2e;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        
+        .noise-indicator {
+            background: linear-gradient(135deg, #1e293b, #0f172a);
+            border-radius: 20px;
+            padding: 14px;
+            margin-bottom: 16px;
+            color: white;
+            text-align: center;
+        }
+        
+        .noise-indicator .big-db {
+            font-size: 2.2rem;
+            font-weight: 800;
+        }
+        
+        .noise-level-tag {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 40px;
+            font-size: 0.7rem;
+            font-weight: bold;
+            margin-top: 6px;
+        }
+        
+        .trend-canvas {
+            background: #f8fafc;
+            border-radius: 16px;
+            padding: 8px;
+            margin-top: 12px;
+        }
+        
+        .legend {
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(12px);
+            padding: 12px 18px;
+            border-radius: 24px;
+            z-index: 500;
+            border: 1px solid rgba(0, 0, 0, 0.1);
+            color: #1e293b;
+            font-size: 0.75rem;
+            font-weight: 600;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
+        }
+
+        .legend-gradient {
+            width: 200px;
+            height: 8px;
+            border-radius: 4px;
+            margin: 8px 0;
+            background: linear-gradient(90deg, #2ec4b6, #ffdd57, #ff9f43, #ff5a5f);
+        }
+        
+        .legend-labels {
+            display: flex;
+            justify-content: space-between;
+        }
+        
+        .info-floating {
+            position: absolute;
+            bottom: 20px;
+            left: 400px;
+            background: rgba(0, 0, 0, 0.7);
+            backdrop-filter: blur(8px);
+            padding: 8px 20px;
+            border-radius: 40px;
+            font-size: 0.8rem;
+            z-index: 500;
+            color: white;
+            pointer-events: none;
+            font-weight: 500;
+            border-left: 3px solid #ff9800;
+        }
+        
+        .leaflet-interactive {
+            transition: filter 0.2s, stroke-width 0.1s;
+        }
+        .leaflet-interactive:hover {
+            filter: drop-shadow(0 0 3px currentColor);
+            cursor: pointer;
+        }
+
+        @keyframes roadFlow {
+            from { stroke-dashoffset: 0; }
+            to { stroke-dashoffset: -80; }
+        }
+
+        .road-flow {
+            stroke-dasharray: 3 16;
+            stroke-linecap: round;
+            animation-name: roadFlow;
+            animation-timing-function: linear;
+            animation-iteration-count: infinite;
+        }
+
+        .road-flow-fast { animation-duration: 1.2s; }
+        .road-flow-mid { animation-duration: 2.1s; }
+        .road-flow-slow { animation-duration: 3.3s; }
+        .road-flow-very-slow { animation-duration: 4.4s; }
+        
+        .sidebar-content::-webkit-scrollbar { width: 4px; }
+        .sidebar-content::-webkit-scrollbar-track { background: #e2e8f0; border-radius: 4px; }
+        .sidebar-content::-webkit-scrollbar-thumb { background: #ff9800; border-radius: 4px; }
+        
+        .custom-tooltip {
+            background: rgba(0,0,0,0.8);
+            border-radius: 12px;
+            color: white;
+            padding: 4px 10px;
+            font-weight: 500;
+        }
+
+        .contour-label {
+            background: rgba(15, 23, 42, 0.85);
+            color: #fff;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            border-radius: 12px;
+            padding: 2px 8px;
+            font-size: 11px;
+            font-weight: 700;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+            white-space: nowrap;
+        }
+        
+        @media (max-width: 1200px) {
+            .sidebar { width: 320px; }
+            .data-panel { display: none; }
+            .info-floating { left: 345px; }
+        }
+    </style>
+</head>
+<body>
+    <div id="app">
+        <div class="sidebar">
+            <div class="sidebar-header">
+                <h1><i class="fas fa-city"></i> 城市噪声模拟器</h1>
+                <p>北京西城区 · 动态热力 + 等值面分析</p>
+            </div>
+            
+            <div class="sidebar-content">
+                <div class="card">
+                    <div class="card-title"><i class="fas fa-clock"></i> 时段选择</div>
+                    <div class="time-group">
+                        <button class="time-btn" :class="{active: currentTime === 'morning'}" @click="setTime('morning')">
+                            <i class="fas fa-sun"></i> 早高峰
+                        </button>
+                        <button class="time-btn" :class="{active: currentTime === 'noon'}" @click="setTime('noon')">
+                            <i class="fas fa-cloud-sun"></i> 平峰
+                        </button>
+                        <button class="time-btn" :class="{active: currentTime === 'night'}" @click="setTime('night')">
+                            <i class="fas fa-moon"></i> 夜间
+                        </button>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-title"><i class="fas fa-layer-group"></i> 可视化模式</div>
+                    <div class="time-group">
+                        <button class="time-btn" :class="{active: viewMode === 'heat'}" @click="setViewMode('heat')">
+                            <i class="fas fa-fire"></i> 热力图
+                        </button>
+                        <button class="time-btn" :class="{active: viewMode === 'contour'}" @click="setViewMode('contour')">
+                            <i class="fas fa-wave-square"></i> 等值面
+                        </button>
+                    </div>
+                </div>
+
+                <div class="card road-card" v-if="selectedRoad">
+                    <div class="card-title"><i class="fas fa-road"></i> 当前路段</div>
+                    <div class="road-name">
+                        {{ selectedRoad.properties.name || '未命名道路' }}
+                        <span style="font-size:0.7rem; background:#f1f5f9; padding:2px 10px; border-radius:30px;">
+                            {{ getRoadTypeName(selectedRoad.properties.highway) }}
+                        </span>
+                    </div>
+                    
+                    <div class="noise-gauge">
+                        <div class="noise-fill" :style="{width: noisePercent + '%', background: noiseGradient}"></div>
+                    </div>
+                    <div class="noise-value" :style="{color: noiseColor}">
+                        {{ currentNoise.toFixed(1) }} dB
+                    </div>
+                    
+                    <div style="margin: 15px 0;">
+                        <div class="slider-label">
+                            <span><i class="fas fa-tachometer-alt"></i> 限速调整</span>
+                            <span>{{ currentSpeed }} km/h</span>
+                        </div>
+                        <input type="range" min="20" max="80" step="10" v-model.number="currentSpeed">
+                    </div>
+                    
+                    <div class="measure-btn" :class="{active: hasBarrier}" @click="toggleBarrier">
+                        <span><i class="fas fa-shield-alt"></i> 隔音屏障</span>
+                        <span style="font-size:0.75rem;">{{ hasBarrier ? '✓ 已安装 (-7dB)' : '点击安装' }}</span>
+                    </div>
+                    <div class="measure-btn" :class="{active: hasAsphalt}" @click="toggleAsphalt">
+                        <span><i class="fas fa-road"></i> 降噪沥青</span>
+                        <span style="font-size:0.75rem;">{{ hasAsphalt ? '✓ 已铺设 (-3.5dB)' : '点击铺设' }}</span>
+                    </div>
+                    
+                    <button @click="clearSelection" style="width:100%; margin-top:16px; padding:10px; background:#f1f5f9; border:none; border-radius:16px; cursor:pointer; font-weight:600; transition:0.2s;">
+                        <i class="fas fa-times"></i> 取消选择
+                    </button>
+                </div>
+
+                <div class="card">
+                    <div class="card-title"><i class="fas fa-chart-line"></i> 区域统计</div>
+                    <div class="stats-grid">
+                        <div class="stat-box">
+                            <div class="stat-number">{{ avgNoise.toFixed(0) }}<span style="font-size:0.7rem;">dB</span></div>
+                            <div style="font-size:0.7rem;">平均噪声</div>
+                        </div>
+                        <div class="stat-box">
+                            <div class="stat-number">{{ maxNoise.toFixed(0) }}<span style="font-size:0.7rem;">dB</span></div>
+                            <div style="font-size:0.7rem;">最高噪声</div>
+                        </div>
+                        <div class="stat-box">
+                            <div class="stat-number">{{ (exceedRate * 100).toFixed(0) }}<span style="font-size:0.7rem;">%</span></div>
+                            <div style="font-size:0.7rem;">超标路段</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-title"><i class="fas fa-info-circle"></i> 交互指南</div>
+                    <ul style="margin-left: 20px; font-size:0.7rem; color:#475569; line-height:1.8;">
+                        <li>✨ 点击<strong style="color:#ff9800;">彩色道路</strong>选择路段，实时降噪模拟</li>
+                        <li>🔥 热力/等值面两种模式，适应不同分析需求</li>
+                        <li>⚙️ 限速/隔音屏障/降噪沥青 → 噪声分布实时更新</li>
+                        <li>📊 右侧面板展示噪声趋势与实时指数</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <!-- 右侧数据面板：噪声指数 + 趋势图 -->
+        <div class="data-panel">
+            <h4><i class="fas fa-chart-simple"></i> 噪声指数</h4>
+            <div class="noise-indicator">
+                <div style="font-size:0.7rem; opacity:0.8;">当前区域平均</div>
+                <div class="big-db">{{ avgNoise.toFixed(0) }} <span style="font-size:1rem;">dB</span></div>
+                <div class="noise-level-tag" :style="{background: noiseLevelColor, color: '#fff'}">{{ noiseLevelText }}</div>
+            </div>
+            <div>
+                <div style="display: flex; justify-content: space-between; font-size:0.7rem; margin-bottom:6px;">
+                    <span><i class="fas fa-arrow-up"></i> 最高 {{ maxNoise.toFixed(0) }} dB</span>
+                    <span><i class="fas fa-arrow-down"></i> 最低 {{ minNoise.toFixed(0) }} dB</span>
+                </div>
+            </div>
+            <h4 style="margin-top:12px;"><i class="fas fa-chart-line"></i> 时段趋势 (dB)</h4>
+            <div style="font-size:0.68rem; color:#64748b; margin-top:-6px; margin-bottom:8px;">
+                {{ trendDescription }}
+            </div>
+            <div class="trend-canvas">
+                <canvas id="trendChart" width="240" height="120" style="width:100%; height:auto;"></canvas>
+            </div>
+            <div style="font-size:0.65rem; text-align:center; margin-top:10px; color:#64748b;">
+                <i class="fas fa-chart-column"></i> 早高峰 / 平峰 / 夜间
+            </div>
+        </div>
+
+        <div id="map"></div>
+        
+        <div class="legend">
+            <div><strong><i class="fas fa-chart-line"></i> {{ legendTitle }}</strong></div>
+            <div class="legend-gradient"></div>
+            <div class="legend-labels">
+                <span>50</span><span>60</span><span>70</span><span>80+</span>
+            </div>
+            <div style="margin-top:6px; font-size:0.65rem;">🌡️ 绿→黄→橙→红 噪声升高</div>
+        </div>
+        
+        <div class="info-floating" id="infoFloating">
+            <i class="fas fa-hand-pointer"></i> 点击道路体验智能降噪
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/vue@2/dist/vue.js"></script>
+    <script>
+        const ROAD_TYPES = {
+            trunk: '快速路', primary: '主干道', secondary: '次干道',
+            tertiary: '支路', residential: '住宅区道路', unclassified: '一般道路'
+        };
+        
+        const TRAFFIC_MODEL = {
+            trunk: { baseVolume: 4200, speed: 55, baseNoise: 73 },
+            primary: { baseVolume: 2600, speed: 45, baseNoise: 68 },
+            secondary: { baseVolume: 1400, speed: 38, baseNoise: 63 },
+            tertiary: { baseVolume: 700, speed: 32, baseNoise: 58 },
+            residential: { baseVolume: 220, speed: 25, baseNoise: 52 },
+            unclassified: { baseVolume: 260, speed: 25, baseNoise: 53 }
+        };
+        
+        const TIME_FACTORS = { morning: 1.35, noon: 1.0, night: 0.45 };
+        const TIME_NAMES = { morning: '早高峰', noon: '平峰', night: '夜间' };
+        
+        new Vue({
+            el: '#app',
+            data: {
+                currentTime: 'morning',
+                selectedRoad: null,
+                currentSpeed: 50,
+                hasBarrier: false,
+                hasAsphalt: false,
+                roadsData: [],
+                buildingsData: [],
+                greenData: [],
+                map: null,
+                roadLayer: null,
+                roadHitLayer: null,
+                roadBaseLayer: null,
+                buildingLayer: null,
+                greenLayer: null,
+                heatLayer: null,
+                contourLayer: null,
+                contourLabelLayer: null,
+                barrierMarker: null,
+                viewMode: 'heat',
+                currentNoise: 65,
+                avgNoise: 58,
+                maxNoise: 72,
+                minNoise: 48,
+                exceedRate: 0.25,
+                trendChart: null,
+                noiseDataCache: { morning: 0, noon: 0, night: 0 }
+            },
+            computed: {
+                noisePercent() {
+                    return Math.min(100, Math.max(0, ((this.currentNoise - 45) / 50) * 100));
+                },
+                noiseColor() {
+                    if (this.currentNoise < 60) return '#2ecc71';
+                    if (this.currentNoise < 70) return '#f39c12';
+                    return '#e74c3c';
+                },
+                noiseGradient() {
+                    if (this.currentNoise < 60) return 'linear-gradient(90deg, #2ecc71, #55ef7c)';
+                    if (this.currentNoise < 70) return 'linear-gradient(90deg, #f39c12, #f1c40f)';
+                    return 'linear-gradient(90deg, #e74c3c, #c0392b)';
+                },
+                legendTitle() {
+                    return '噪声等级 (dB)';
+                },
+                noiseLevelText() {
+                    if (this.avgNoise < 55) return '安静舒适';
+                    if (this.avgNoise < 65) return '轻度干扰';
+                    if (this.avgNoise < 75) return '中度吵闹';
+                    return '严重超标';
+                },
+                noiseLevelColor() {
+                    if (this.avgNoise < 55) return '#2ecc71';
+                    if (this.avgNoise < 65) return '#f39c12';
+                    if (this.avgNoise < 75) return '#e67e22';
+                    return '#e74c3c';
+                },
+                trendDescription() {
+                    if (!this.selectedRoad) {
+                        return '当前展示区域平均噪声在三个时段的变化';
+                    }
+                    const name = this.selectedRoad.properties.name || '当前路段';
+                    return `${name}：未治理 vs 当前治理方案`; 
+                }
+            },
+            methods: {
+                getRoadTypeName(type) { return ROAD_TYPES[type] || '城市道路'; },
+
+                normalizeHighwayType(type) {
+                    if (!type) return 'unclassified';
+                    if (type.includes('trunk')) return 'trunk';
+                    if (type.includes('primary')) return 'primary';
+                    if (type.includes('secondary')) return 'secondary';
+                    if (type.includes('tertiary')) return 'tertiary';
+                    if (type === 'service' || type === 'living_street' || type.includes('residential')) return 'residential';
+                    if (TRAFFIC_MODEL[type]) return type;
+                    return 'unclassified';
+                },
+
+                getRoadModelByType(rawType) {
+                    const type = this.normalizeHighwayType(rawType);
+                    return TRAFFIC_MODEL[type] || TRAFFIC_MODEL.unclassified;
+                },
+
+                getRoadModel(road) {
+                    return this.getRoadModelByType(road?.properties?.highway);
+                },
+
+                getRoadAnimationClass(type, speed = null) {
+                    type = this.normalizeHighwayType(type);
+                    let base = 'road-flow-mid';
+                    if (type === 'trunk' || type === 'primary') base = 'road-flow-fast';
+                    else if (type === 'secondary' || type === 'tertiary') base = 'road-flow-mid';
+                    else if (type === 'residential') base = 'road-flow-slow';
+                    else base = 'road-flow-very-slow';
+
+                    if (speed !== null) {
+                        if (speed >= 60) base = 'road-flow-fast';
+                        else if (speed >= 40) base = 'road-flow-mid';
+                        else if (speed >= 30) base = 'road-flow-slow';
+                        else base = 'road-flow-very-slow';
+                    }
+                    return base;
+                },
+
+                getFlowDurationSeconds(type, speed = null) {
+                    const cls = this.getRoadAnimationClass(type, speed);
+                    let duration = 2.1;
+                    if (cls === 'road-flow-fast') duration = 1.2;
+                    else if (cls === 'road-flow-mid') duration = 2.1;
+                    else if (cls === 'road-flow-slow') duration = 3.3;
+                    else duration = 4.4;
+
+                    // 夜间车少：流动速度更慢；早高峰略快。
+                    const timeFactor = this.currentTime === 'night' ? 1.8 : (this.currentTime === 'morning' ? 0.9 : 1.0);
+                    return duration * timeFactor;
+                },
+
+                getFlowDashArray(isSelected) {
+                    // 夜间粒子更稀疏，强化“车少”语义。
+                    if (this.currentTime === 'night') {
+                        return isSelected ? '2, 18' : '2, 24';
+                    }
+                    if (this.currentTime === 'morning') {
+                        return isSelected ? '4, 10' : '3, 14';
+                    }
+                    return isSelected ? '3, 12' : '3, 16';
+                },
+
+                applyFlowStyle(layer, feature, isSelected, speedForSelected = null) {
+                    if (!layer || !layer._path) return;
+                    const path = layer._path;
+
+                    path.classList.remove('road-flow', 'road-flow-fast', 'road-flow-mid', 'road-flow-slow', 'road-flow-very-slow');
+
+                    const roadType = feature.properties.highway || 'unclassified';
+                    const speed = isSelected ? speedForSelected : null;
+                    const flowClass = this.getRoadAnimationClass(roadType, speed);
+                    const duration = this.getFlowDurationSeconds(roadType, speed);
+
+                    path.classList.add('road-flow');
+                    path.classList.add(flowClass);
+                    path.style.animationDuration = `${duration.toFixed(2)}s`;
+
+                    // 选中道路更明显，未选中道路保持较弱动画
+                    path.style.animationPlayState = 'running';
+                },
+
+                outOfChina(lng, lat) {
+                    return lng < 72.004 || lng > 137.8347 || lat < 0.8293 || lat > 55.8271;
+                },
+                transformLat(lng, lat) {
+                    let ret = -100.0 + 2.0 * lng + 3.0 * lat + 0.2 * lat * lat + 0.1 * lng * lat + 0.2 * Math.sqrt(Math.abs(lng));
+                    ret += (20.0 * Math.sin(6.0 * lng * Math.PI) + 20.0 * Math.sin(2.0 * lng * Math.PI)) * 2.0 / 3.0;
+                    ret += (20.0 * Math.sin(lat * Math.PI) + 40.0 * Math.sin(lat / 3.0 * Math.PI)) * 2.0 / 3.0;
+                    ret += (160.0 * Math.sin(lat / 12.0 * Math.PI) + 320 * Math.sin(lat * Math.PI / 30.0)) * 2.0 / 3.0;
+                    return ret;
+                },
+                transformLng(lng, lat) {
+                    let ret = 300.0 + lng + 2.0 * lat + 0.1 * lng * lng + 0.1 * lng * lat + 0.1 * Math.sqrt(Math.abs(lng));
+                    ret += (20.0 * Math.sin(6.0 * lng * Math.PI) + 20.0 * Math.sin(2.0 * lng * Math.PI)) * 2.0 / 3.0;
+                    ret += (20.0 * Math.sin(lng * Math.PI) + 40.0 * Math.sin(lng / 3.0 * Math.PI)) * 2.0 / 3.0;
+                    ret += (150.0 * Math.sin(lng / 12.0 * Math.PI) + 300.0 * Math.sin(lng / 30.0 * Math.PI)) * 2.0 / 3.0;
+                    return ret;
+                },
+                wgs84ToGcj02(lng, lat) {
+                    if (this.outOfChina(lng, lat)) return [lng, lat];
+                    const a = 6378245.0;
+                    const ee = 0.00669342162296594323;
+                    let dLat = this.transformLat(lng - 105.0, lat - 35.0);
+                    let dLng = this.transformLng(lng - 105.0, lat - 35.0);
+                    const radLat = lat / 180.0 * Math.PI;
+                    let magic = Math.sin(radLat);
+                    magic = 1 - ee * magic * magic;
+                    const sqrtMagic = Math.sqrt(magic);
+                    dLat = (dLat * 180.0) / ((a * (1 - ee)) / (magic * sqrtMagic) * Math.PI);
+                    dLng = (dLng * 180.0) / (a / sqrtMagic * Math.cos(radLat) * Math.PI);
+                    return [lng + dLng, lat + dLat];
+                },
+                convertGeometryToGcj(geometry) {
+                    if (!geometry || !geometry.coordinates) return geometry;
+                    const convertCoords = (coords) => {
+                        if (typeof coords[0] === 'number' && typeof coords[1] === 'number') {
+                            return this.wgs84ToGcj02(coords[0], coords[1]);
+                        }
+                        return coords.map(convertCoords);
+                    };
+                    return { ...geometry, coordinates: convertCoords(geometry.coordinates) };
+                },
+                convertFeatureListToGcj(features) {
+                    return features.map(f => ({ ...f, geometry: this.convertGeometryToGcj(f.geometry) }));
+                },
+                
+                calculateRoadNoise(road, time, customSpeed = null, barrier = false, asphalt = false) {
+                    const model = this.getRoadModel(road);
+                    let volume = model.baseVolume * TIME_FACTORS[time];
+                    let noise = model.baseNoise + 10 * Math.log10(volume / Math.max(1, model.baseVolume));
+                    const rawSpeed = customSpeed !== null ? customSpeed : model.speed;
+                    const speed = Number.isFinite(Number(rawSpeed)) ? Number(rawSpeed) : model.speed;
+                    noise += 12 * Math.log10((speed + 1) / (model.speed + 1));
+                    if (barrier) noise -= 7;
+                    if (asphalt) noise -= 3.5;
+                    return Math.min(92, Math.max(40, noise));
+                },
+                
+                getCurrentRoadNoise() {
+                    if (!this.selectedRoad) return 65;
+                    return this.calculateRoadNoise(this.selectedRoad, this.currentTime, this.currentSpeed, this.hasBarrier, this.hasAsphalt);
+                },
+                
+                buildNoiseSamples() {
+                    const points = [];
+                    this.roadsData.forEach(road => {
+                        let roadNoise, speed, barrier, asphalt;
+                        if (this.selectedRoad && road === this.selectedRoad) {
+                            speed = this.currentSpeed;
+                            barrier = this.hasBarrier;
+                            asphalt = this.hasAsphalt;
+                        } else {
+                            const model = this.getRoadModel(road);
+                            speed = model.speed;
+                            barrier = false;
+                            asphalt = false;
+                        }
+                        roadNoise = this.calculateRoadNoise(road, this.currentTime, speed, barrier, asphalt);
+                        let intensity = (roadNoise - 45) / 42;
+                        intensity = Math.pow(Math.min(1, Math.max(0, intensity)), 1.2);
+                        
+                        const coordsList = road.geometry.type === 'MultiLineString' ? road.geometry.coordinates : [road.geometry.coordinates];
+                        coordsList.forEach(line => {
+                            for (let i = 0; i < line.length - 1; i++) {
+                                const dx = line[i+1][0] - line[i][0];
+                                const dy = line[i+1][1] - line[i][1];
+                                const segLen = Math.sqrt(dx * dx + dy * dy);
+                                const stepCount = Math.max(6, Math.min(24, Math.floor(segLen * 80000)));
+                                for (let step = 0; step <= stepCount; step++) {
+                                    const t = step / stepCount;
+                                    const lng = line[i][0] + t * (line[i+1][0] - line[i][0]);
+                                    const lat = line[i][1] + t * (line[i+1][1] - line[i][1]);
+                                    points.push({ lat, lng, intensity, db: roadNoise });
+                                }
+                            }
+                        });
+                    });
+                    return points;
+                },
+
+                clearVisualizationLayers() {
+                    if (this.heatLayer) { this.map.removeLayer(this.heatLayer); this.heatLayer = null; }
+                    if (this.contourLayer) { this.map.removeLayer(this.contourLayer); this.contourLayer = null; }
+                    if (this.contourLabelLayer) { this.map.removeLayer(this.contourLabelLayer); this.contourLabelLayer = null; }
+                },
+
+                renderHeatLayer(samplePoints) {
+                    const points = samplePoints.map(p => [p.lat, p.lng, p.intensity]);
+                    if (!points.length) return;
+                    this.heatLayer = L.heatLayer(points, {
+                        radius: 26, blur: 22, maxZoom: 19, minOpacity: 0.3,
+                        pane: 'noisePane',
+                        gradient: { 0.1: '#2ec4b6', 0.35: '#ffdd57', 0.6: '#ff9f43', 0.85: '#ff5a5f', 1.0: '#d7263d' }
+                    }).addTo(this.map);
+                },
+
+                renderContourLayer(samplePoints) {
+                    if (!samplePoints.length || !this.roadLayer || !this.roadLayer.getBounds().isValid()) return;
+                    const bounds = this.roadLayer.getBounds();
+                    const minLat = bounds.getSouth(), maxLat = bounds.getNorth(), minLng = bounds.getWest(), maxLng = bounds.getEast();
+                    const gridW = 70, gridH = 70;
+                    const values = new Array(gridW * gridH).fill(40);
+                    const sparse = samplePoints.filter((_, idx) => idx % 3 === 0);
+                    const sigma = 0.0012, sigma2 = sigma * sigma;
+                    for (let y = 0; y < gridH; y++) {
+                        const lat = maxLat - (y / (gridH - 1)) * (maxLat - minLat);
+                        for (let x = 0; x < gridW; x++) {
+                            const lng = minLng + (x / (gridW - 1)) * (maxLng - minLng);
+                            let val = 40;
+                            for (let i = 0; i < sparse.length; i++) {
+                                const p = sparse[i];
+                                const dLat = lat - p.lat, dLng = lng - p.lng;
+                                const d2 = dLat*dLat + dLng*dLng;
+                                const contrib = p.db * Math.exp(-d2 / (2 * sigma2));
+                                if (contrib > val) val = contrib;
+                            }
+                            values[y * gridW + x] = Math.max(40, Math.min(92, val));
+                        }
+                    }
+                    const thresholds = [50, 55, 60, 65, 70, 75, 80, 85];
+                    const contourGen = d3.contours().size([gridW, gridH]).thresholds(thresholds);
+                    const contourData = contourGen(values);
+                    const styleForLevel = (level) => {
+                        if (level < 55) return { fill: '#2ec4b6', opacity: 0.12 };
+                        if (level < 60) return { fill: '#7bc96f', opacity: 0.15 };
+                        if (level < 65) return { fill: '#ffdd57', opacity: 0.18 };
+                        if (level < 70) return { fill: '#ffb347', opacity: 0.22 };
+                        if (level < 75) return { fill: '#ff9f43', opacity: 0.26 };
+                        if (level < 80) return { fill: '#ff7f50', opacity: 0.3 };
+                        if (level < 85) return { fill: '#ff5a5f', opacity: 0.34 };
+                        return { fill: '#d7263d', opacity: 0.38 };
+                    };
+                    const geoFeatures = contourData.map(c => ({
+                        type: 'Feature',
+                        properties: { level: c.value },
+                        geometry: { type: 'MultiPolygon', coordinates: c.coordinates.map(poly => poly.map(ring => ring.map(([x, y]) => {
+                            const lng = minLng + (x / (gridW - 1)) * (maxLng - minLng);
+                            const lat = maxLat - (y / (gridH - 1)) * (maxLat - minLat);
+                            return [lng, lat];
+                        }))) }
+                    }));
+                    this.contourLayer = L.geoJSON({ type: 'FeatureCollection', features: geoFeatures }, {
+                        pane: 'noisePane',
+                        style: (feature) => {
+                            const st = styleForLevel(feature.properties.level);
+                            return { color: '#fff', weight: 0.8, opacity: 0.4, fillColor: st.fill, fillOpacity: st.opacity, interactive: false };
+                        }
+                    }).addTo(this.map);
+                    const labels = [];
+                    [60, 70, 80].forEach(target => {
+                        const match = geoFeatures.find(f => f.properties.level === target);
+                        if (match && match.geometry.coordinates[0] && match.geometry.coordinates[0][0]) {
+                            const ring = match.geometry.coordinates[0][0];
+                            let minLng=Infinity, maxLng=-Infinity, minLat=Infinity, maxLat=-Infinity;
+                            ring.forEach(([lng, lat]) => {
+                                minLng = Math.min(minLng, lng); maxLng = Math.max(maxLng, lng);
+                                minLat = Math.min(minLat, lat); maxLat = Math.max(maxLat, lat);
+                            });
+                            const center = [(minLat+maxLat)/2, (minLng+maxLng)/2];
+                            labels.push(L.marker(center, { pane: 'noisePane', interactive: false, icon: L.divIcon({ className: 'contour-label', html: `${target} dB`, iconSize: [56, 20], iconAnchor: [28, 10] }) }));
+                        }
+                    });
+                    this.contourLabelLayer = L.layerGroup(labels).addTo(this.map);
+                },
+                
+                regenerateHeatmap() {
+                    if (!this.roadsData.length || !this.map) return;
+                    const samplePoints = this.buildNoiseSamples();
+                    this.clearVisualizationLayers();
+                    if (this.viewMode === 'contour') this.renderContourLayer(samplePoints);
+                    else this.renderHeatLayer(samplePoints);
+                    this.updateRoadStyles();
+                    this.updateStatistics();
+                    this.updateTrendChart();
+                },
+                
+                updateRoadStyles() {
+                    if (!this.roadLayer) return;
+                    this.roadLayer.eachLayer(layer => {
+                        const feature = layer.feature;
+                        const isSelected = this.selectedRoad === feature;
+                        let noise;
+                        if (isSelected) noise = this.calculateRoadNoise(feature, this.currentTime, this.currentSpeed, this.hasBarrier, this.hasAsphalt);
+                        else { const model = this.getRoadModel(feature); noise = this.calculateRoadNoise(feature, this.currentTime, model.speed, false, false); }
+                        let color = '#64748b';
+                        if (isSelected) {
+                            if (noise < 55) color = '#2ec4b6';
+                            else if (noise < 62) color = '#b8de6f';
+                            else if (noise < 70) color = '#ffdd57';
+                            else if (noise < 80) color = '#ff9f43';
+                            else color = '#ff5a5f';
+                        }
+                        let weight = isSelected ? 7 : 2.1;
+                        let opacity = isSelected ? 0.95 : 0.4;
+                        if (isSelected && this.hasAsphalt) { color = '#5f3dc9'; weight = 6.2; opacity = 0.9; }
+                        let dashArray = this.getFlowDashArray(isSelected);
+                        layer.setStyle({ color, weight, opacity, dashArray });
+                        if (isSelected) { layer.bringToFront(); layer.setStyle({ weight: weight + 1.2 }); }
+
+                        const appliedSpeed = isSelected ? this.currentSpeed : null;
+                        this.applyFlowStyle(layer, feature, isSelected, appliedSpeed);
+                    });
+                },
+                
+                updateStatistics() {
+                    let noises = [];
+                    this.roadsData.forEach(road => {
+                        let noise;
+                        if (this.selectedRoad && road === this.selectedRoad) noise = this.calculateRoadNoise(road, this.currentTime, this.currentSpeed, this.hasBarrier, this.hasAsphalt);
+                        else { const model = this.getRoadModel(road); noise = this.calculateRoadNoise(road, this.currentTime, model.speed, false, false); }
+                        noises.push(noise);
+                    });
+                    this.avgNoise = noises.reduce((a,b)=>a+b,0)/noises.length;
+                    this.maxNoise = Math.max(...noises);
+                    this.minNoise = Math.min(...noises);
+                    this.exceedRate = noises.filter(n => n > 70).length / noises.length;
+                    const getNoiseForTime = (t) => {
+                        let sum = 0, cnt = 0;
+                        this.roadsData.forEach(road => {
+                            const model = this.getRoadModel(road);
+                            sum += this.calculateRoadNoise(road, t, model.speed, false, false);
+                            cnt++;
+                        });
+                        return cnt ? sum / cnt : 65;
+                    };
+                    this.noiseDataCache = { morning: getNoiseForTime('morning'), noon: getNoiseForTime('noon'), night: getNoiseForTime('night') };
+                },
+                
+                updateTrendChart() {
+                    const ctx = document.getElementById('trendChart')?.getContext('2d');
+                    if (!ctx) return;
+                    if (this.trendChart) this.trendChart.destroy();
+
+                    const times = ['morning', 'noon', 'night'];
+                    const labels = ['早高峰', '平峰', '夜间'];
+                    let baseline = [];
+                    let scenario = [];
+
+                    if (this.selectedRoad) {
+                        const model = this.getRoadModel(this.selectedRoad);
+                        baseline = times.map(t => this.calculateRoadNoise(this.selectedRoad, t, model.speed, false, false));
+                        scenario = times.map(t => this.calculateRoadNoise(this.selectedRoad, t, this.currentSpeed, this.hasBarrier, this.hasAsphalt));
+                    } else {
+                        baseline = [this.noiseDataCache.morning, this.noiseDataCache.noon, this.noiseDataCache.night];
+                        scenario = baseline.slice();
+                    }
+
+                    this.trendChart = new Chart(ctx, {
+                        type: 'bar',
+                        data: {
+                            labels,
+                            datasets: [
+                                {
+                                    label: this.selectedRoad ? '未治理' : '区域平均',
+                                    data: baseline,
+                                    backgroundColor: ['#94a3b8', '#94a3b8', '#94a3b8'],
+                                    borderRadius: 8
+                                },
+                                {
+                                    label: this.selectedRoad ? '当前方案' : '当前展示',
+                                    data: scenario,
+                                    backgroundColor: ['#ff7e2e', '#ffb347', '#2c3e66'],
+                                    borderRadius: 8
+                                }
+                            ]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: true,
+                            plugins: {
+                                legend: { display: true, position: 'top', labels: { boxWidth: 10, font: { size: 10 } } },
+                                tooltip: {
+                                    callbacks: {
+                                        label: (ctx) => `${ctx.dataset.label}: ${ctx.raw.toFixed(1)} dB`
+                                    }
+                                }
+                            },
+                            scales: {
+                                y: { min: 40, max: 85, grid: { color: '#e2e8f0' }, title: { display: true, text: 'dB' } }
+                            }
+                        }
+                    });
+                },
+                
+                updateBarrierMarker() {
+                    if (this.barrierMarker) this.barrierMarker.remove();
+                    if (!this.hasBarrier || !this.selectedRoad) return;
+                    const coords = this.selectedRoad.geometry.coordinates;
+                    const center = coords[Math.floor(coords.length / 2)];
+                    const barrierIcon = L.divIcon({ className: 'custom-div-icon', html: '<div style="background:#ff9800; width:38px; height:38px; border-radius:50%; display:flex; align-items:center; justify-content:center; box-shadow:0 0 18px rgba(255,152,0,0.8); border:2px solid white;"><i class="fas fa-shield-alt" style="color:white; font-size:20px;"></i></div>', iconSize: [38,38], popupAnchor: [0,-19] });
+                    this.barrierMarker = L.marker([center[1], center[0]], { icon: barrierIcon }).bindPopup('🔇 隔音屏障已生效<br>噪声 -7 dB').addTo(this.map);
+                },
+                
+                refreshAll() {
+                    this.currentNoise = this.getCurrentRoadNoise();
+                    this.regenerateHeatmap();
+                    this.updateBarrierMarker();
+                    this.updateInfoFloating(`⚡ 噪声 ${this.currentNoise.toFixed(1)} dB | 可视化已更新`);
+                },
+                
+                setTime(time) { this.currentTime = time; this.refreshAll(); this.updateInfoFloating(`📅 时段: ${TIME_NAMES[time]} · 噪声分布变化`); },
+                setViewMode(mode) { this.viewMode = mode; this.refreshAll(); this.updateInfoFloating(mode === 'contour' ? '🗺️ 已切换等值面模式' : '🔥 已切换热力图模式'); },
+                toggleBarrier() { this.hasBarrier = !this.hasBarrier; this.refreshAll(); this.updateInfoFloating(this.hasBarrier ? '✅ 隔音屏障已安装，噪声降低7dB' : '❌ 隔音屏障已移除'); },
+                toggleAsphalt() { this.hasAsphalt = !this.hasAsphalt; this.refreshAll(); this.updateInfoFloating(this.hasAsphalt ? '🛣️ 降噪沥青已铺设，噪声降低3.5dB' : '🔄 降噪沥青已移除'); },
+                clearSelection() { this.selectedRoad = null; this.hasBarrier = false; this.hasAsphalt = false; if (this.barrierMarker) this.barrierMarker.remove(); this.refreshAll(); this.updateInfoFloating('已取消选择，显示全域噪声'); },
+                updateInfoFloating(message) { const el = document.getElementById('infoFloating'); if (el) { el.innerHTML = `<i class="fas fa-bell"></i> ${message}`; setTimeout(() => { if (el.innerHTML.includes(message)) el.innerHTML = '<i class="fas fa-hand-pointer"></i> 点击道路体验智能降噪'; }, 2800); } },
+                
+                async loadData() {
+                    try {
+                        const res = await fetch('map.geojson');
+                        const data = await res.json();
+                        const features = data.features || [];
+                        this.roadsData = features.filter(f => f.geometry && (f.geometry.type === 'LineString' || f.geometry.type === 'MultiLineString') && f.properties && (f.properties.highway || (f.properties.tags && f.properties.tags.highway))).map(f => { if(f.properties?.tags) { f.properties.highway = f.properties.highway || f.properties.tags.highway; f.properties.name = f.properties.name || f.properties.tags.name; } return f; });
+                        this.buildingsData = features.filter(f => f.geometry && (f.geometry.type === 'Polygon' || f.geometry.type === 'MultiPolygon') && f.properties?.tags?.building);
+                        this.greenData = features.filter(f => f.geometry && (f.geometry.type === 'Polygon' || f.geometry.type === 'MultiPolygon') && f.properties?.tags && (f.properties.tags.leisure === 'park' || f.properties.tags.landuse === 'grass'));
+                        this.roadsData = this.convertFeatureListToGcj(this.roadsData);
+                        this.buildingsData = this.convertFeatureListToGcj(this.buildingsData);
+                        this.greenData = this.convertFeatureListToGcj(this.greenData);
+                        console.log(`✅ 加载 ${this.roadsData.length} 条路网`);
+                        return this.roadsData;
+                    } catch(e) { console.warn('加载失败，使用模拟数据', e); return []; }
+                },
+                
+                initMap() {
+                    this.map = L.map('map').setView([39.908, 116.375], 13.8);
+                    L.tileLayer('https://webrd0{s}.is.autonavi.com/appmaptile?lang=zh_cn&size=1&scale=1&style=8&x={x}&y={y}&z={z}', { subdomains: '1234', maxZoom: 19, attribution: '&copy; 高德地图' }).addTo(this.map);
+
+                    // 保证热力图/等值面不拦截道路点击。
+                    this.map.createPane('noisePane');
+                    this.map.getPane('noisePane').style.zIndex = 420;
+                    this.map.getPane('noisePane').style.pointerEvents = 'none';
+
+                    this.map.createPane('roadPane');
+                    this.map.getPane('roadPane').style.zIndex = 450;
+
+                    this.map.createPane('roadHitPane');
+                    this.map.getPane('roadHitPane').style.zIndex = 460;
+
+                    L.control.scale({ metric: true, imperial: false, position: 'bottomleft' }).addTo(this.map);
+                },
+                
+                async initRoadLayer() {
+                    let roads = await this.loadData();
+                    if (!roads.length) {
+                        const mock = { type: "FeatureCollection", features: [
+                            { type: "Feature", geometry: { type: "LineString", coordinates: [[116.350,39.905],[116.365,39.910],[116.375,39.908]] }, properties: { highway: "primary", name: "金融大街" } },
+                            { type: "Feature", geometry: { type: "LineString", coordinates: [[116.360,39.895],[116.372,39.898],[116.382,39.892]] }, properties: { highway: "trunk", name: "西二环" } },
+                            { type: "Feature", geometry: { type: "LineString", coordinates: [[116.345,39.890],[116.358,39.885],[116.370,39.888]] }, properties: { highway: "secondary", name: "太平桥大街" } },
+                            { type: "Feature", geometry: { type: "LineString", coordinates: [[116.378,39.900],[116.390,39.905],[116.395,39.902]] }, properties: { highway: "residential", name: "辟才胡同" } }
+                        ]};
+                        roads = this.convertFeatureListToGcj(mock.features);
+                        this.roadsData = roads;
+                    }
+                    if (this.greenData.length) this.greenLayer = L.geoJSON(this.greenData, { style: { color: '#74c69d', weight: 0.8, fillColor: '#b7e4c7', fillOpacity: 0.45 } }).addTo(this.map);
+                    if (this.buildingsData.length) this.buildingLayer = L.geoJSON(this.buildingsData, { style: { color: '#b8c2cc', weight: 0.6, fillColor: '#dbe2ea', fillOpacity: 0.6 } }).addTo(this.map);
+                    this.roadBaseLayer = L.geoJSON(roads, { pane: 'roadPane', interactive: false, style: { color: '#ffffff', weight: 4.8, opacity: 0.35 } }).addTo(this.map);
+                    const vm = this;
+
+                    // 可视道路层（负责颜色与粒子动画，不负责命中）
+                    this.roadLayer = L.geoJSON(roads, {
+                        pane: 'roadPane',
+                        interactive: false,
+                        style: () => ({ color: '#64748b', weight: 2.1, opacity: 0.4 })
+                    }).addTo(this.map);
+
+                    // 透明命中层（负责点击/悬浮，确保任何缩放级别都能点中道路）
+                    this.roadHitLayer = L.geoJSON(roads, {
+                        pane: 'roadHitPane',
+                        style: () => ({ color: '#000000', weight: 14, opacity: 0, fillOpacity: 0 }),
+                        onEachFeature: (feature, layer) => {
+                            layer.on('click', () => {
+                                const model = vm.getRoadModel(feature);
+                                vm.selectedRoad = feature;
+                                vm.currentSpeed = model.speed;
+                                vm.hasBarrier = false;
+                                vm.hasAsphalt = false;
+                                vm.refreshAll();
+                                vm.updateInfoFloating(`📍 已选中: ${feature.properties.name || '城市干道'}`);
+                            });
+                            layer.on('mouseover', () => {
+                                const name = feature.properties.name || '道路';
+                                layer.bindTooltip(`🏙️ ${name} · ${vm.getRoadTypeName(vm.normalizeHighwayType(feature.properties.highway))}`, { sticky: true, className: 'custom-tooltip' }).openTooltip();
+                            });
+                            layer.on('mouseout', () => {
+                                layer.closeTooltip();
+                            });
+                        }
+                    }).addTo(this.map);
+
+                    if (this.roadLayer.getBounds().isValid()) this.map.fitBounds(this.roadLayer.getBounds(), { padding: [40,40] });
+                    this.regenerateHeatmap();
+                    this.updateTrendChart();
+                }
+            },
+            watch: {
+                currentSpeed() { if (this.selectedRoad) this.refreshAll(); },
+                viewMode() { this.refreshAll(); },
+                currentTime() { this.refreshAll(); }
+            },
+            mounted() { this.initMap(); this.initRoadLayer(); }
+        });
+    </script>
+</body>
+</html>
