@@ -1,9 +1,9 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>北京西城区噪声地图 - 专业增强版 | 动态热力+等值面+趋势分析</title>
+    <title>北京西城区噪声地图</title>
     
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css" />
     <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js"></script>
@@ -22,7 +22,6 @@
             background: #f0f2f5;
         }
         
-        /* 侧边栏 - 毛玻璃效果 */
         .sidebar {
             position: absolute;
             left: 20px;
@@ -219,8 +218,7 @@
             height: 100vh;
             background: #e9f0f5;
         }
-        
-        /* 右侧数据面板 - 新增 */
+
         .data-panel {
             position: absolute;
             right: 20px;
@@ -383,7 +381,6 @@
         <div class="sidebar">
             <div class="sidebar-header">
                 <h1><i class="fas fa-city"></i> 城市噪声模拟器</h1>
-                <p>北京西城区 · 动态热力 + 等值面分析</p>
             </div>
             
             <div class="sidebar-content">
@@ -391,10 +388,10 @@
                     <div class="card-title"><i class="fas fa-clock"></i> 时段选择</div>
                     <div class="time-group">
                         <button class="time-btn" :class="{active: currentTime === 'morning'}" @click="setTime('morning')">
-                            <i class="fas fa-sun"></i> 早高峰
+                            <i class="fas fa-sun"></i> 早晚高峰
                         </button>
                         <button class="time-btn" :class="{active: currentTime === 'noon'}" @click="setTime('noon')">
-                            <i class="fas fa-cloud-sun"></i> 平峰
+                            <i class="fas fa-cloud-sun"></i> 午间
                         </button>
                         <button class="time-btn" :class="{active: currentTime === 'night'}" @click="setTime('night')">
                             <i class="fas fa-moon"></i> 夜间
@@ -469,20 +466,9 @@
                         </div>
                     </div>
                 </div>
-
-                <div class="card">
-                    <div class="card-title"><i class="fas fa-info-circle"></i> 交互指南</div>
-                    <ul style="margin-left: 20px; font-size:0.7rem; color:#475569; line-height:1.8;">
-                        <li>✨ 点击<strong style="color:#ff9800;">彩色道路</strong>选择路段，实时降噪模拟</li>
-                        <li>🔥 热力/等值面两种模式，适应不同分析需求</li>
-                        <li>⚙️ 限速/隔音屏障/降噪沥青 → 噪声分布实时更新</li>
-                        <li>📊 右侧面板展示噪声趋势与实时指数</li>
-                    </ul>
-                </div>
             </div>
         </div>
 
-        <!-- 右侧数据面板：噪声指数 + 趋势图 -->
         <div class="data-panel">
             <h4><i class="fas fa-chart-simple"></i> 噪声指数</h4>
             <div class="noise-indicator">
@@ -504,7 +490,7 @@
                 <canvas id="trendChart" width="240" height="120" style="width:100%; height:auto;"></canvas>
             </div>
             <div style="font-size:0.65rem; text-align:center; margin-top:10px; color:#64748b;">
-                <i class="fas fa-chart-column"></i> 早高峰 / 平峰 / 夜间
+                <i class="fas fa-chart-column"></i> 早晚高峰 / 午间 / 夜间
             </div>
         </div>
 
@@ -516,7 +502,7 @@
             <div class="legend-labels">
                 <span>50</span><span>60</span><span>70</span><span>80+</span>
             </div>
-            <div style="margin-top:6px; font-size:0.65rem;">🌡️ 绿→黄→橙→红 噪声升高</div>
+            <div style="margin-top:6px; font-size:0.65rem;"> 绿→黄→橙→红 噪声升高</div>
         </div>
         
         <div class="info-floating" id="infoFloating">
@@ -541,7 +527,7 @@
         };
         
         const TIME_FACTORS = { morning: 1.35, noon: 1.0, night: 0.45 };
-        const TIME_NAMES = { morning: '早高峰', noon: '平峰', night: '夜间' };
+        const TIME_NAMES = { morning: '早晚高峰', noon: '午间', night: '夜间' };
         
         new Vue({
             el: '#app',
@@ -658,13 +644,12 @@
                     else if (cls === 'road-flow-slow') duration = 3.3;
                     else duration = 4.4;
 
-                    // 夜间车少：流动速度更慢；早高峰略快。
+                    // 夜间车少；早高峰略快。
                     const timeFactor = this.currentTime === 'night' ? 1.8 : (this.currentTime === 'morning' ? 0.9 : 1.0);
                     return duration * timeFactor;
                 },
 
                 getFlowDashArray(isSelected) {
-                    // 夜间粒子更稀疏，强化“车少”语义。
                     if (this.currentTime === 'night') {
                         return isSelected ? '2, 18' : '2, 24';
                     }
@@ -689,7 +674,6 @@
                     path.classList.add(flowClass);
                     path.style.animationDuration = `${duration.toFixed(2)}s`;
 
-                    // 选中道路更明显，未选中道路保持较弱动画
                     path.style.animationPlayState = 'running';
                 },
 
@@ -832,6 +816,10 @@
                         }
                     }
                     const thresholds = [50, 55, 60, 65, 70, 75, 80, 85];
+                    const nextByLevel = {};
+                    thresholds.forEach((v, i) => {
+                        nextByLevel[v] = thresholds[i + 1] || 92;
+                    });
                     const contourGen = d3.contours().size([gridW, gridH]).thresholds(thresholds);
                     const contourData = contourGen(values);
                     const styleForLevel = (level) => {
@@ -846,7 +834,7 @@
                     };
                     const geoFeatures = contourData.map(c => ({
                         type: 'Feature',
-                        properties: { level: c.value },
+                        properties: { level: c.value, nextLevel: nextByLevel[c.value] || 92 },
                         geometry: { type: 'MultiPolygon', coordinates: c.coordinates.map(poly => poly.map(ring => ring.map(([x, y]) => {
                             const lng = minLng + (x / (gridW - 1)) * (maxLng - minLng);
                             const lat = maxLat - (y / (gridH - 1)) * (maxLat - minLat);
@@ -854,10 +842,35 @@
                         }))) }
                     }));
                     this.contourLayer = L.geoJSON({ type: 'FeatureCollection', features: geoFeatures }, {
-                        pane: 'noisePane',
+                        pane: 'contourPane',
                         style: (feature) => {
                             const st = styleForLevel(feature.properties.level);
-                            return { color: '#fff', weight: 0.8, opacity: 0.4, fillColor: st.fill, fillOpacity: st.opacity, interactive: false };
+                            return { color: '#fff', weight: 0.8, opacity: 0.4, fillColor: st.fill, fillOpacity: st.opacity };
+                        },
+                        onEachFeature: (feature, layer) => {
+                            const low = Number(feature.properties.level || 0);
+                            const high = Number(feature.properties.nextLevel || 92);
+                            const text = high >= 92 ? `噪声等级: >= ${low.toFixed(0)} dB` : `噪声等级: ${low.toFixed(0)}-${high.toFixed(0)} dB`;
+
+                            layer.on('mouseover', (e) => {
+                                layer.setStyle({ weight: 1.2, opacity: 0.65 });
+                                layer.bindTooltip(text, {
+                                    sticky: true,
+                                    className: 'custom-tooltip',
+                                    direction: 'top'
+                                }).openTooltip(e.latlng);
+                            });
+
+                            layer.on('mousemove', (e) => {
+                                if (layer.getTooltip()) {
+                                    layer.openTooltip(e.latlng);
+                                }
+                            });
+
+                            layer.on('mouseout', () => {
+                                layer.setStyle({ weight: 0.8, opacity: 0.4 });
+                                layer.closeTooltip();
+                            });
                         }
                     }).addTo(this.map);
                     const labels = [];
@@ -946,7 +959,7 @@
                     if (this.trendChart) this.trendChart.destroy();
 
                     const times = ['morning', 'noon', 'night'];
-                    const labels = ['早高峰', '平峰', '夜间'];
+                    const labels = ['早晚高峰', '午间', '夜间'];
                     let baseline = [];
                     let scenario = [];
 
@@ -1039,10 +1052,13 @@
                     this.map = L.map('map').setView([39.908, 116.375], 13.8);
                     L.tileLayer('https://webrd0{s}.is.autonavi.com/appmaptile?lang=zh_cn&size=1&scale=1&style=8&x={x}&y={y}&z={z}', { subdomains: '1234', maxZoom: 19, attribution: '&copy; 高德地图' }).addTo(this.map);
 
-                    // 保证热力图/等值面不拦截道路点击。
                     this.map.createPane('noisePane');
                     this.map.getPane('noisePane').style.zIndex = 420;
                     this.map.getPane('noisePane').style.pointerEvents = 'none';
+
+                    this.map.createPane('contourPane');
+                    this.map.getPane('contourPane').style.zIndex = 430;
+                    this.map.getPane('contourPane').style.pointerEvents = 'auto';
 
                     this.map.createPane('roadPane');
                     this.map.getPane('roadPane').style.zIndex = 450;
@@ -1070,14 +1086,14 @@
                     this.roadBaseLayer = L.geoJSON(roads, { pane: 'roadPane', interactive: false, style: { color: '#ffffff', weight: 4.8, opacity: 0.35 } }).addTo(this.map);
                     const vm = this;
 
-                    // 可视道路层（负责颜色与粒子动画，不负责命中）
+                    // 可视道路层
                     this.roadLayer = L.geoJSON(roads, {
                         pane: 'roadPane',
                         interactive: false,
                         style: () => ({ color: '#64748b', weight: 2.1, opacity: 0.4 })
                     }).addTo(this.map);
 
-                    // 透明命中层（负责点击/悬浮，确保任何缩放级别都能点中道路）
+                    // 透明命中层
                     this.roadHitLayer = L.geoJSON(roads, {
                         pane: 'roadHitPane',
                         style: () => ({ color: '#000000', weight: 14, opacity: 0, fillOpacity: 0 }),
